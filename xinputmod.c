@@ -22,6 +22,10 @@ DWORD WINAPI XInputGetState( _In_ DWORD userIndex, _Out_ XINPUT_STATE* state ) W
 	if ( origXInputGetState ) {
 		res = origXInputGetState( userIndex, state );
 
+		logPrintf( "%d = XInputGetState( %d ) {\n", res, ( int ) userIndex );
+			logPrintf( "\tlstick: { %d, %d }\n", state->Gamepad.sThumbLX, state->Gamepad.sThumbLY );
+		logPrintf( "}\n" );
+
 		//logPrintf( "%d\n", res );
 
 		return res;

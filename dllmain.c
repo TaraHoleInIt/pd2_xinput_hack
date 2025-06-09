@@ -19,18 +19,19 @@ WNDPROC oldWndProc = NULL;
 HWND diabloWindow = NULL;
 
 LRESULT CALLBACK hookedWndProc( HWND window, UINT msg, WPARAM wparam, LPARAM lparam ) {
-	//switch ( msg ) {
-	//	case WM_INPUT:
-	//		logPrintf( "%s: WM_INPUT\n", __FUNCTION__ );
-	//		break;
-	//	case WM_INPUT_DEVICE_CHANGE:
-	//		logPrintf( "%s: WM_INPUT_DEVICE_CHANGE\n", __FUNCTION__ );
-	//		break;
-	//	default:
-	//		break;
-	//};
+	switch ( msg ) {
+		case WM_INPUT:
+			logPrintf( "%s: WM_INPUT\n", __FUNCTION__ );
+			break;
+		case WM_INPUT_DEVICE_CHANGE:
+			logPrintf( "%s: WM_INPUT_DEVICE_CHANGE %d\n", __FUNCTION__, ( int ) wparam );
+			break;
+		default:
+			break;
+	};
 
-	return oldWndProc( window, msg, wparam, lparam );
+	//return oldWndProc( window, msg, wparam, lparam );
+	return CallWindowProc( oldWndProc, window, msg, wparam, lparam );
 }
 
 DWORD WINAPI messageThread( LPVOID param ) {
@@ -49,7 +50,7 @@ DWORD WINAPI messageThread( LPVOID param ) {
 	if ( oldWndProc ) {
 		Sleep( 250 );
 
-		logPrintf( "Sending WM_INPUT_DEVICE_CHANGE" );
+		logPrintf( "Sending WM_INPUT_DEVICE_CHANGE\n" );
 		CallWindowProc( oldWndProc, diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_ARRIVAL, 0 );
 		logPrintf( "Sent!\n" );
 
@@ -67,6 +68,7 @@ BOOL WINAPI DllMain( HINSTANCE dll, DWORD reason, LPVOID reserved ) {
 	switch ( reason ) {
 		case DLL_PROCESS_ATTACH:
 			logOpen( );
+			logPrintf( "Built %s at %d\n", __DATE__, __TIME__ );
 			logPrintf( "DllMain::DLL_PROCESS_ATTACH\n" );
 
 			if ( loadXInput( ) == TRUE ) {
