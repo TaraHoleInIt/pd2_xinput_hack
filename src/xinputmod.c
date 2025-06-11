@@ -17,19 +17,14 @@ static HMODULE realXInputDLL = NULL;
 DWORD WINAPI XInputGetState( _In_ DWORD userIndex, _Out_ XINPUT_STATE* state ) WIN_NOEXCEPT {
 	int res = 0;
 
-	//logPrintf( "%s: %lu returning ", __FUNCTION__, userIndex );
-
 	if ( origXInputGetState ) {
 		res = origXInputGetState( userIndex, state );
 
-		logPrintf( "%d = XInputGetState( %d ) {\n", res, ( int ) userIndex );
-			logPrintf( "\tlstick: { %d, %d }\n", state->Gamepad.sThumbLX, state->Gamepad.sThumbLY );
-		logPrintf( "}\n" );
-
-		//logPrintf( "%d\n", res );
-
+		logPrintf( "%d = XInputGetState( %u )\n", res, userIndex );
 		return res;
 	}
+
+	logPrintf( "Should not be here!\n" );
 
 	return ERROR_DEVICE_NOT_CONNECTED;
 }
