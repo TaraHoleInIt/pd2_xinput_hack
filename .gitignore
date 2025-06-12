@@ -3,3 +3,5 @@ Release/*
 Debug/*
 Release_Logging/*
 
+*.xml
+/xinput1_4

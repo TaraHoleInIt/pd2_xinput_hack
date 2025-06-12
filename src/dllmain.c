@@ -1,4 +1,4 @@
-#define WIN32_LEAN_AND_MEAN
+//#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <psapi.h>
 #include <hidsdi.h>
@@ -8,8 +8,12 @@
 #include "xinputmod.h"
 #include "hooks.h"
 
-void CALLBACK wmInputTimerHack( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 );
+extern LRESULT CALLBACK hookWndProc( HWND window, UINT msg, LPARAM lparam, WPARAM wparam );
 
+void CALLBACK wmInputTimerHack( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 );
+void CALLBACK hookWndProcTimer( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 );
+
+extern WNDPROC oldWndProc;
 HWND diabloWindow = NULL;
 
 void CALLBACK wmInputTimerHack( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 ) {
@@ -24,6 +28,13 @@ void CALLBACK wmInputTimerHack( HWND param1, UINT param2, UINT_PTR param3, DWORD
 	SetPropA( diabloWindow, "userData", NULL );
 
 	PostMessage( diabloWindow, WM_INPUT, RIM_INPUT, ( LPARAM ) &dummy );
+}
+
+void CALLBACK hookWndProcTimer( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 ) {
+	logPrintf( "%s\n", __FUNCTION__ );
+	KillTimer( diabloWindow, 0x2121 );
+
+	oldWndProc = ( WNDPROC ) SetWindowLongPtr( diabloWindow, GWLP_WNDPROC, ( LONG ) hookWndProc );
 }
 
 BOOL WINAPI DllMain( HINSTANCE dll, DWORD reason, LPVOID reserved ) {

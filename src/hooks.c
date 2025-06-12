@@ -13,6 +13,7 @@ UINT WINAPI hookGetRawInputDeviceInfoW( HANDLE device, UINT command, LPVOID data
 UINT WINAPI hookGetRawInputData( HANDLE device, UINT command, LPVOID data, PUINT size, UINT headerSize );
 BOOL WINAPI hookSetWindowTextA( HWND window, LPCSTR newText );
 BOOL WINAPI hookSetWindowTextW( HWND window, LPCWSTR newText );
+BOOL WINAPI hookShowWindow( HWND window, int cmdShow );
 
 HWND( WINAPI* realCreateWindowExA ) ( DWORD exStyle, LPCSTR className, LPCSTR windowName, DWORD style, int x, int y, int width, int height, HWND parent, HMENU menu, HINSTANCE instance, LPVOID param ) = CreateWindowExA;
 BOOL( WINAPI* realRegisterRawInputDevices ) ( PCRAWINPUTDEVICE rawInputDevices, UINT numDevices, UINT cbSize ) = RegisterRawInputDevices;
@@ -25,8 +26,37 @@ UINT( WINAPI* realGetRawInputData ) ( HANDLE device, UINT command, LPVOID data, 
 BOOL( WINAPI* realSetWindowTextW ) ( HWND window, LPCWSTR newText ) = SetWindowTextW;
 BOOL( WINAPI* realSetWindowTextA ) ( HWND window, LPCSTR newText ) = SetWindowTextA;
 
+BOOL( WINAPI* realShowWindow ) ( HWND window, int cmdShow ) = ShowWindow;
+
 extern void CALLBACK wmInputTimerHack( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 );
+extern void CALLBACK hookWndProcTimer( HWND param1, UINT param2, UINT_PTR param3, DWORD param4 );
+
 extern HWND diabloWindow;
+
+WNDPROC oldWndProc = NULL;
+
+LRESULT CALLBACK hookWndProc( HWND window, UINT msg, LPARAM lparam, WPARAM wparam ) {
+	switch ( msg ) {
+		//case WM_TIMER:
+		//case WM_INPUT:
+		//case WM_MOUSEMOVE:
+		//case WM_LBUTTONDOWN:
+		//case WM_SETCURSOR:
+		//case WM_NCHITTEST:
+		//case WM_LBUTTONUP:
+		//	break;
+		case WM_WINDOWPOSCHANGED:
+			//CallWindowProc( oldWndProc, diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_REMOVAL, 0 );
+			//CallWindowProc( oldWndProc, diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_ARRIVAL, 0 );
+			//PostMessage( diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_REMOVAL, ( LPARAM ) 0x00D1AB10 );
+			PostMessage( diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_ARRIVAL, ( LPARAM ) 0x00D1AB10 );
+		default:
+			logPrintf( "hookWndProc( 0x%p, 0x%p, 0x%p, 0x%p )\n", window, msg, lparam, wparam );
+			break;
+	};
+
+	return CallWindowProc( oldWndProc, window, msg, lparam, wparam );
+}
 
 BOOL WINAPI hookRegisterRawInputDevices( PCRAWINPUTDEVICE rawInputDevices, UINT numDevices, UINT cbSize ) {
 	BOOL res = realRegisterRawInputDevices( rawInputDevices, numDevices, cbSize );
@@ -36,8 +66,11 @@ BOOL WINAPI hookRegisterRawInputDevices( PCRAWINPUTDEVICE rawInputDevices, UINT 
 	if ( rawInputDevices && rawInputDevices[ 0 ].hwndTarget == diabloWindow ) {
 		logPrintf( "Registering raw input devices to Diablo II window\n" );
 
+		PostMessage( diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_REMOVAL, ( LPARAM ) 0x00D1AB10 );
 		PostMessage( diabloWindow, WM_INPUT_DEVICE_CHANGE, GIDC_ARRIVAL, ( LPARAM ) 0x00D1AB10 );
+
 		SetTimer( diabloWindow, 0xD1AB, 16, wmInputTimerHack );
+		SetTimer( diabloWindow, 0x2121, 250, hookWndProcTimer );
 	}
 
 	return res;
@@ -62,7 +95,8 @@ HWND WINAPI hookCreateWindowExA( DWORD exStyle, LPCSTR className, LPCSTR windowN
 
 	if ( strcmp( className, "Diablo II" ) == 0 ) {
 		diabloWindow = res;
-		logPrintf( "Found Diablo II window (0x%p)", diabloWindow );
+		logPrintf( "Found Diablo II window (0x%p)\n", diabloWindow );
+		logPrintf( "Subclassing WndProc\n" );
 	}
 
 	return res;
@@ -107,6 +141,13 @@ BOOL WINAPI hookSetWindowTextW( HWND window, LPCWSTR newText ) {
 	return res;
 }
 
+BOOL WINAPI hookShowWindow( HWND window, int cmdShow ) {
+	BOOL res = realShowWindow( window, cmdShow );
+
+	logPrintf( "%d = ShowWindow( 0x%p, %d )\n", window, cmdShow );
+	return res;
+}
+
 BOOL loadHooks( void ) {
 	LONG err = 0;
 
@@ -125,6 +166,8 @@ BOOL loadHooks( void ) {
 
 		DetourAttach( ( PVOID* ) &realSetWindowTextA, hookSetWindowTextA );
 		DetourAttach( ( PVOID* ) &realSetWindowTextW, hookSetWindowTextW );
+
+		DetourAttach( ( PVOID* ) &realShowWindow, hookShowWindow );
 		err = DetourTransactionCommit( );
 	logPrintf( "detour result = %d\n", err );
 
@@ -144,5 +187,7 @@ void unloadHooks( void ) {
 
 	DetourDetach( ( PVOID* ) &realSetWindowTextA, hookSetWindowTextA );
 	DetourDetach( ( PVOID* ) &realSetWindowTextW, hookSetWindowTextW );
+
+	DetourDetach( ( PVOID* ) &realShowWindow, hookShowWindow );
 	DetourTransactionCommit( );
 }

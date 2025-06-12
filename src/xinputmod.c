@@ -24,8 +24,6 @@ DWORD WINAPI XInputGetState( _In_ DWORD userIndex, _Out_ XINPUT_STATE* state ) W
 		return res;
 	}
 
-	logPrintf( "Should not be here!\n" );
-
 	return ERROR_DEVICE_NOT_CONNECTED;
 }
 
